@@ -17,30 +17,84 @@ namespace Input
 {
     public class BattleInputListener : MonoBehaviour
     {
-        [Header("Character Input Values")]
-        public Vector2 move;
+        [Header("Character Input Values")] public Vector2 move;
+
         public Vector2 look;
 
         // 对于武器而言，不需要知道什么逻辑，只需要知道扳机扣下还是没扣下就行了
         public bool Fire;
-        
+
         // 主动装填。
         public bool Reload;
-        
+
         public bool interactiveC;
 
-        [Header("Movement Settings")]
-        public bool analogMovement;
+        [Header("Movement Settings")] public bool analogMovement;
 
-        [Header("Mouse Cursor Settings")]
-        public bool cursorLocked = true;
-        public bool cursorInputForLook = true;
+        [Header("Mouse Cursor Settings")] public bool usePointer;
 
-        [ShowInInspector]
-        public InputAction.CallbackContext debug;
+        [ShowInInspector] public InputAction.CallbackContext debug;
+
+        private void Update()
+        {
+            if (usePointer) GetPointerForMove();
+        }
+
+        private void GetPointerForMove()
+        {
+            // 使用InputSystem的Pointer设备获取位置
+            Vector2 pointerPosition = Pointer.current.position.ReadValue();
+        
+            // 计算屏幕中心
+            Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
+        
+            // 计算标准化向量
+            move = (pointerPosition - screenCenter) / screenCenter;
+        
+            // 如果需要死区处理（小幅度输入视为0）
+            if(move.magnitude < 0.1f)
+            {
+                move = Vector2.zero;
+            }
+        }
+
+        private void MoveCallBack(Vector2 newMoveDirection)
+        {
+            if (usePointer) return;
+            move = newMoveDirection;
+        }
+
+        private void LookCallBack(Vector2 newLookDirection)
+        {
+            look = newLookDirection;
+        }
+
+        // private void JumpCallBack(bool newJumpState)
+        // {
+        //     Debug.Log("[StandardInputListener]JumpCallBack");
+        //     jump = newJumpState;
+        // }
+
+        private void FireCallBack(bool newInteractive)
+        {
+            Debug.Log("[StandardInputListener]Button A CallBack");
+            Fire = newInteractive;
+        }
+
+        private void ReloadCallBack(bool newInteractive)
+        {
+            Debug.Log("[StandardInputListener]Button B CallBack");
+            Reload = newInteractive;
+        }
+
+        private void InteractiveCCallBack(bool newInteractive)
+        {
+            Debug.Log("[StandardInputListener]Button B CallBack");
+            interactiveC = newInteractive;
+        }
 
         #region 输入检测
-        
+
         public void OnMove(InputAction.CallbackContext value)
         {
             // 使用UnityEvent作为Input回调的时候无法使用InputValue.Get<Vector2>()
@@ -50,10 +104,7 @@ namespace Input
 
         public void OnLook(InputAction.CallbackContext value)
         {
-            if(cursorInputForLook)
-            {
-                LookCallBack(value.ReadValue<Vector2>());
-            }
+            LookCallBack(value.ReadValue<Vector2>());
         }
 
         // public void OnJump(InputAction.CallbackContext value)
@@ -70,18 +121,17 @@ namespace Input
             switch (value.phase)
             {
                 case InputActionPhase.Performed:
-                    Debug.Log($"[Input]value.Performed");
+                    Debug.Log("[Input]value.Performed");
                     break;
                 case InputActionPhase.Started:
-                    Debug.Log($"[Input]value.Started");
+                    Debug.Log("[Input]value.Started");
                     break;
                 case InputActionPhase.Canceled:
-                    Debug.Log($"[Input]value.Canceled");
+                    Debug.Log("[Input]value.Canceled");
                     break;
             }
-            
-            
-            
+
+
             FireCallBack(value.performed);
         }
 
@@ -89,7 +139,7 @@ namespace Input
         {
             ReloadCallBack(value.performed);
         }
-        
+
         public void OnInteractiveC(InputAction.CallbackContext value)
         {
             InteractiveCCallBack(value.started);
@@ -107,40 +157,6 @@ namespace Input
 
         #endregion 输入检测
 
-        private void MoveCallBack(Vector2 newMoveDirection) 
-        {
-            move = newMoveDirection;
-        } 
-
-        private void LookCallBack(Vector2 newLookDirection)
-        {
-            look = newLookDirection;
-        }
-
-        // private void JumpCallBack(bool newJumpState)
-        // {
-        //     Debug.Log("[StandardInputListener]JumpCallBack");
-        //     jump = newJumpState;
-        // }
-
-        private void FireCallBack(bool newInteractive)
-        {
-            Debug.Log("[StandardInputListener]Button A CallBack");
-            Fire = newInteractive;
-        }		
-		
-        private void ReloadCallBack(bool newInteractive)
-        {           
-            Debug.Log("[StandardInputListener]Button B CallBack");
-            Reload = newInteractive;
-        }        
-        
-        private void InteractiveCCallBack(bool newInteractive)
-        {           
-            Debug.Log("[StandardInputListener]Button B CallBack");
-            interactiveC = newInteractive;
-        }
-
         // private void OnApplicationFocus(bool hasFocus)
         // {
         //     SetCursorState(cursorLocked);
@@ -151,5 +167,4 @@ namespace Input
         //     //Cursor.lockState = newState ? CursorLockMode.Locked : CursorLockMode.None;
         // }
     }
-	
 }

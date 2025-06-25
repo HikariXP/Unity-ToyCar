@@ -41,9 +41,9 @@ public class SimpleMoveExtra : MonoBehaviour
         if (gc.isGrounded)
         {
             moveDirection = GetCameraRelativeDirection(bil.move);
-            
-
         }
+        
+        
         
         // 可选：让物体朝向移动方向旋转
         vehicle.position = Vector3.Lerp(this.transform.position, vehicle.position, Time.deltaTime);
@@ -53,19 +53,21 @@ public class SimpleMoveExtra : MonoBehaviour
     void FixedUpdate()
     {
                 
-        if (moveDirection == Vector3.zero && rb.velocity.magnitude > 0.1f)
+        // if (moveDirection == Vector3.zero && rb.velocity.magnitude > 0.1f)
+        if (!bil.Fire && rb.velocity.magnitude > 0.1f && gc.isGrounded)
         {
             rb.velocity *= 0.95f; // 简单的减速
         }
         
         // 在FixedUpdate中应用物理力（现在基于物体自身的正前方）
         // if (moveDirection != Vector3.zero && rb.velocity.magnitude < maxSpeed)
-        if (moveDirection != Vector3.zero && gc.isGrounded)
+        // if (moveDirection != Vector3.zero && gc.isGrounded && bil.Fire)
+        if (gc.isGrounded && bil.Fire)
         {
             rb.AddForce(transform.forward * moveForce, ForceMode.Force);
+            if (rb.velocity.magnitude > maxSpeed) rb.velocity = rb.velocity.normalized * maxSpeed;
         }
-        
-        /// 这里出问题
+
         if (moveDirection != Vector3.zero)
         {
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
