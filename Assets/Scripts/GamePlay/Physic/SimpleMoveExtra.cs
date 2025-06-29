@@ -14,15 +14,25 @@ public class SimpleMoveExtra : MonoBehaviour
     public Rigidbody rb;
     
     [Header("赛车参数")]
-    public float moveForce = 10f; // 移动力大小
+    // 最大马力
+    public float maxHorsePower = 20000f; 
+    // 马力加速度(每秒)
+    public float powerAcceleration = 10000f;
+    // 马力不足时的爆发增加马力
+    public float initialHorsePower = 5000f;
+    // 最高速度
     public float maxSpeed = 5f; // 最大移动速度
+    // 转弯性能
     public float rotationSpeed = 10f; // 旋转速度（可选）
 
-    [Header("插值")] public float lerpValue = 0.5f;
+    [ShowInInspector]
+    private float _runtimeHorsePower = 0f;
+
+    [ShowInInspector]
+    private float currentSpeed => rb.velocity.magnitude;
     
     [ShowInInspector]
     private Vector3 moveDirection;
-
     [SerializeField]
     private Transform vehicle;
 
@@ -35,15 +45,11 @@ public class SimpleMoveExtra : MonoBehaviour
 
     void Update()
     {
-        //  return;
-
         // 计算基于摄像机朝向的移动方向
         if (gc.isGrounded)
         {
             moveDirection = GetCameraRelativeDirection(bil.move);
         }
-        
-        
         
         // 可选：让物体朝向移动方向旋转
         vehicle.position = Vector3.Lerp(this.transform.position, vehicle.position, Time.deltaTime);
@@ -52,29 +58,60 @@ public class SimpleMoveExtra : MonoBehaviour
 
     void FixedUpdate()
     {
-                
-        // if (moveDirection == Vector3.zero && rb.velocity.magnitude > 0.1f)
-        if (!bil.Fire && rb.velocity.magnitude > 0.1f && gc.isGrounded)
+        var fixedDetlaTime = Time.deltaTime;
+        var moving = rb.velocity.magnitude > 0.1f;
+        
+        // 模拟轮胎的摩擦力
+        if (!bil.Fire && moving && gc.isGrounded)
         {
-            rb.velocity *= 0.95f; // 简单的减速
+            rb.velocity -= rb.velocity * (0.5f * fixedDetlaTime); // 简单的减速
         }
         
-        // 在FixedUpdate中应用物理力（现在基于物体自身的正前方）
-        // if (moveDirection != Vector3.zero && rb.velocity.magnitude < maxSpeed)
-        // if (moveDirection != Vector3.zero && gc.isGrounded && bil.Fire)
-        if (gc.isGrounded && bil.Fire)
+        // 如果着地并且踩油门，那就给一个前向的力
+        if (gc.isGrounded)
         {
-            rb.AddForce(transform.forward * moveForce, ForceMode.Force);
-            if (rb.velocity.magnitude > maxSpeed) rb.velocity = rb.velocity.normalized * maxSpeed;
+            if (bil.Fire)
+            {
+                // 添加一个马力让车立即可以走
+                if (_runtimeHorsePower < initialHorsePower)
+                {
+                    _runtimeHorsePower += initialHorsePower;
+                }
+
+                // 马力还没到最大
+                if (_runtimeHorsePower < maxHorsePower)
+                {
+                    _runtimeHorsePower += fixedDetlaTime * powerAcceleration;
+                    _runtimeHorsePower = _runtimeHorsePower > maxHorsePower ? maxHorsePower : _runtimeHorsePower;
+                }
+
+                
+                if (rb.velocity.magnitude > maxSpeed) rb.velocity = rb.velocity.normalized * maxSpeed;
+            }
+            else
+            {
+                // 1秒下降到0
+                _runtimeHorsePower -= fixedDetlaTime * _runtimeHorsePower;
+                if (_runtimeHorsePower <= 0) _runtimeHorsePower = 0;
+            }
+            rb.AddForce(transform.forward * _runtimeHorsePower, ForceMode.Force);
         }
 
+        // 如果旋转有输入，那么就尝试将车转向目标
         if (moveDirection != Vector3.zero)
         {
+            // 如果速度不够，那么转弯速度将下降，但不至于为0，会卡死
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+            if (moving)
+            {
+                
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * fixedDetlaTime);
+            }
+            else
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed* 0.2f * fixedDetlaTime);
+            }
         }
-        
-
     }
 
     Vector3 GetCameraRelativeMovement(float horizontal, float vertical)
